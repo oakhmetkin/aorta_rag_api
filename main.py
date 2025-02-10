@@ -6,6 +6,7 @@ import json
 import uvicorn
 import colorama
 from colorama import Fore, Style
+import typing as tp
 
 import auth
 from models import GenerativeModel, YandexGptModel, YandexGptModelConfig
@@ -62,7 +63,7 @@ app = FastAPI()
 
 
 @app.get('/ping')
-async def ping() -> dict[str, tp.Any]:
+async def ping() -> tp.Dict[str, tp.Any]:
     logger.info(f'ping request')
     return {
         'status': 'success',
@@ -74,11 +75,11 @@ class Query(BaseModel):
     token: str
     message: str
     model: str
-    max_len: int | None = None
+    max_len: tp.Optional[int] = None
 
 
 @app.post('/generate')
-async def generate(query: Query) -> dict[str, tp.Any]:
+async def generate(query: Query) -> tp.Dict[str, tp.Any]:
     user = auth.get_user(query.token)
 
     if user is None:
