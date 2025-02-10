@@ -1,5 +1,9 @@
 {
     "tokens_path": "secrets/apikey/tokens",
+    "yandexgpt_secrets": {
+        "folder_id_path": "secrets/yandexgpt/folder_id",
+        "api_key_path": "secrets/yandexgpt/api_key"
+    },
     "er_file": "data/er.txt",
     "available_models": [
         "yandexgpt"

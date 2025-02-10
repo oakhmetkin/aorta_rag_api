@@ -18,9 +18,14 @@ with open('config.json') as f:
 auth.load_tokens(CONFIG['tokens_path'])
 
 # models
+ya_config = YandexGptModelConfig(
+    CONFIG['er_file'],
+    **CONFIG['yandexgpt_secrets'],
+)
+
 model_names = {k: k for k in CONFIG['available_models']}
 generative_models: list[GenerativeModel] = {
-    'yandexgpt': YandexGptModel(YandexGptModelConfig(CONFIG['er_file'])),
+    'yandexgpt': YandexGptModel(ya_config),
 }
 
 # logger

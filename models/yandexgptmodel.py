@@ -41,7 +41,7 @@ ENTITY_LOOKUP_PROMPT = """
 
 class YandexGptModelConfig:
     
-    def __init__(self, er_file: str):
+    def __init__(self, er_file: str, folder_id_path: str, api_key_path: str):
         self.__ACCENT_MAPPING = {
             '́': '', '̀': '', 'а́': 'а', 'а̀': 'а', 'е́': 'е', 'ѐ': 'е', 'и́': 'и',
             'ѝ': 'и', 'о́': 'о', 'о̀': 'о', 'у́': 'у', 'у̀': 'у', 'ы́': 'ы',
@@ -55,8 +55,11 @@ class YandexGptModelConfig:
 
         # -----
 
-        self.folder_id = os.environ['YANDEX_FOLDER_ID']
-        self.api_key = os.environ['YANDEX_API_KEY']
+        with open(folder_id_path) as f:
+            self.folder_id = f.read().strip()
+        
+        with open(api_key_path) as f:
+            self.api_key = f.read().strip()
 
         self.entities, self.relations = self.__extract_ER_from_file(er_file)
 
