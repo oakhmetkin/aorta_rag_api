@@ -1,0 +1,12 @@
+# files and dirs
+.DS_store
+__pycache__
+
+# python env
+rag_api
+
+# secrets dir
+secrets
+
+# other
+test.py

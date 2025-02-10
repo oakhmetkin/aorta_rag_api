@@ -1,0 +1,7 @@
+{
+    "tokens_path": "secrets/apikey/tokens",
+    "er_file": "data/er.txt",
+    "available_models": [
+        "yandexgpt"
+    ]
+}

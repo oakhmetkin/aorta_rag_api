@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+yandex-chain==0.0.9
+networkx
+colorama
