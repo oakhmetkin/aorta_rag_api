@@ -25,7 +25,7 @@ ya_config = YandexGptModelConfig(
 )
 
 model_names = {k: k for k in CONFIG['available_models']}
-generative_models: list[GenerativeModel] = {
+generative_models: tp.List[GenerativeModel] = {
     'yandexgpt': YandexGptModel(ya_config),
 }
 
