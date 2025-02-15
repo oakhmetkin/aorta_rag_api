@@ -118,5 +118,42 @@ async def generate(query: Query) -> tp.Dict[str, tp.Any]:
     }
 
 
+@app.post('/test/generate')
+async def test_generate(query: Query) -> tp.Dict[str, tp.Any]:
+    user = auth.get_user(query.token)
+
+    if user is None:
+        logger.info(f'generate request failed: wrong token "{query.token}"')
+        return {
+            'status': 'failed',
+            'message': 'wrong token',
+        }
+    
+    model_name = model_names.get(query.model, None)
+
+    if model_name is None:
+        logger.info(f'generate request failed: wrong model "{query.model}"')
+        return {
+            'status': 'failed',
+            'message': 'wrong model',
+        }
+    
+    answer = 'Lorem Ipsum is simply dummy text of the printing and typesetting industry.'
+
+    if query.max_len and len(answer) > query.max_len:
+        answer = answer[:query.max_len]
+
+    logger.info(
+        f'test generate request successed: '
+        f'user={user}, '
+        f'answer_len={len(answer)}, '
+        f'input="{query.message[:min(50, len(query.message))]}"'
+    )
+    return {
+        'status': 'success',
+        'response': {'message': answer},
+    }
+
+
 if __name__ == '__main__':
     uvicorn.run(app, host="0.0.0.0", port=8000)
