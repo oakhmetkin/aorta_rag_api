@@ -9,7 +9,13 @@ from colorama import Fore, Style
 import typing as tp
 
 import auth
-from models import GenerativeModel, YandexGptModel, YandexGptModelConfig
+from models import (
+    GenerativeModel,
+    YandexGptModel,
+    YandexGptModelConfig,
+    QwenModel,
+    QwenModelConfig,
+)
 
 
 # tokens and auth
@@ -19,14 +25,13 @@ with open('config.json') as f:
 auth.load_tokens(CONFIG['tokens_path'])
 
 # models
-ya_config = YandexGptModelConfig(
-    CONFIG['er_file'],
-    **CONFIG['yandexgpt_secrets'],
-)
+ya_config = YandexGptModelConfig(CONFIG['er_file'], **CONFIG['yandexgpt_secrets'])
+qwen_config = QwenModelConfig(CONFIG['er_file'])
 
 model_names = {k: k for k in CONFIG['available_models']}
 generative_models: tp.List[GenerativeModel] = {
     'yandexgpt': YandexGptModel(ya_config),
+    'qwen': QwenModel(qwen_config),
 }
 
 # logger
@@ -98,8 +103,7 @@ async def generate(query: Query) -> tp.Dict[str, tp.Any]:
             'message': 'wrong model',
         }
     
-    if model_name == 'yandexgpt':
-        model = generative_models[model_name]
+    model = generative_models[model_name]
     
     answer = model.generate(query.message, query.max_len)
 

@@ -1,5 +1,6 @@
-import os
-from yandex_chain import YandexLLM, YandexGPTModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
 import networkx as nx
 import re
 import unicodedata
@@ -8,9 +9,12 @@ import logging
 from .generative_model import GenerativeModel
 
 
-__all__ = ['YandexGptModel', 'YandexGptModelConfig']
+__all__ = ['QwenModel', 'QwenModelConfig']
 
 logger = logging.getLogger('rag_logger')
+
+# choose device
+device = torch.device('cuda:0')
 
 
 ANSWER_PROMPT = """
@@ -39,9 +43,9 @@ ENTITY_LOOKUP_PROMPT = """
 """
 
 
-class YandexGptModelConfig:
+class QwenModelConfig:
     
-    def __init__(self, er_file: str, folder_id_path: str, api_key_path: str):
+    def __init__(self, er_file: str):
         self.__ACCENT_MAPPING = {
             '́': '', '̀': '', 'а́': 'а', 'а̀': 'а', 'е́': 'е', 'ѐ': 'е', 'и́': 'и',
             'ѝ': 'и', 'о́': 'о', 'о̀': 'о', 'у́': 'у', 'у̀': 'у', 'ы́': 'ы',
@@ -54,12 +58,6 @@ class YandexGptModelConfig:
         }
 
         # -----
-
-        with open(folder_id_path) as f:
-            self.folder_id = f.read().strip()
-        
-        with open(api_key_path) as f:
-            self.api_key = f.read().strip()
 
         self.entities, self.relations = self.__extract_ER_from_file(er_file)
 
@@ -135,25 +133,47 @@ class YandexGptModelConfig:
         return entities, relations
 
 
-class YandexGptModel(GenerativeModel):
+class QwenModel(GenerativeModel):
     
-    def __init__(self, config: YandexGptModelConfig):
+    def __init__(self, config: QwenModelConfig):
         super().__init__()
 
-        self.__folder_id = config.folder_id
-        self.__api_key = config.api_key
-
-        self.llm = YandexLLM(
-            folder_id=self.__folder_id,
-            api_key=self.__api_key,
-            model=YandexGPTModel.Pro,
+        model_name = "Qwen/Qwen2.5-7B-Instruct"
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype="auto",
+            device_map=device,
         )
-        self.llm.temperature = 0.1
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # self.temperature = 0.1
 
         self.__entities = config.entities
         self.__relations = config.relations
 
         self.__entity_lookup_prompt = config.entity_lookup_prompt
+    
+    def __generate_text(self, prompt: str):
+        messages = [
+            {"role": "system", "content": "Ты хорошо знаешь русский язык. Помоги решить задачу."},
+            {"role": "user", "content": prompt}
+        ]
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+        generated_ids = self.model.generate(
+            **model_inputs,
+            max_new_tokens=512,
+        )
+        generated_ids = [
+            output_ids[len(input_ids):]
+            for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
+        return response
 
     def generate(self, message: str, max_len: int):
         ents = self.__process_q(message)
@@ -162,7 +182,7 @@ class YandexGptModel(GenerativeModel):
         for e in ents:
             self.__populate_graph(G, e, 2)
 
-        ans = self.llm.invoke(
+        ans = self.__generate_text(
             ANSWER_PROMPT
             .replace('{context}', self.__create_context(G))
             .replace('{simptoms}', message),
@@ -171,7 +191,7 @@ class YandexGptModel(GenerativeModel):
         return ans
     
     def __process_q(self, txt):       
-        res = self.llm.invoke(self.__entity_lookup_prompt.format(txt))
+        res = self.__generate_text(self.__entity_lookup_prompt.format(txt))
 
         if '(' in res and ')' in res:
             res = res[res.index('(')+1:res.index(')')]

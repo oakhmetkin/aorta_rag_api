@@ -6,6 +6,7 @@
     },
     "er_file": "data/er.txt",
     "available_models": [
-        "yandexgpt"
+        "yandexgpt",
+        "qwen"
     ]
 }
