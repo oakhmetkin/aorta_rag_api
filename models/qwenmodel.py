@@ -14,7 +14,7 @@ __all__ = ['QwenModel', 'QwenModelConfig']
 logger = logging.getLogger('rag_logger')
 
 # choose device
-device = torch.device('cuda:0')
+device = torch.device('cuda:1')
 
 
 ANSWER_PROMPT = """
