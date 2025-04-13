@@ -83,11 +83,11 @@ class YandexGptModelConfig:
     def __normalize(self, text):
         return (
             self.__unaccentify(text)
-            .replace('«', '')
-            .replace('»', '')
-            .replace('"', '')
-            .replace('<', '')
-            .replace('>', '')
+            # .replace('«', '')
+            # .replace('»', '')
+            # .replace('"', '')
+            # .replace('<', '')
+            # .replace('>', '')
         )
 
     def __extract_ER(self, lines):
@@ -128,7 +128,7 @@ class YandexGptModelConfig:
 
     def __extract_ER_from_file(self, er_file: str):
         with open(er_file, 'r', encoding='utf-8') as f:
-            lines = f.read()
+            lines = f.readlines()
         
         entities, relations = self.__extract_ER(lines)
         logger.info(f"Found {len(entities)} entities and {len(relations)} relations")
@@ -155,7 +155,7 @@ class YandexGptModel(GenerativeModel):
 
         self.__entity_lookup_prompt = config.entity_lookup_prompt
 
-    def generate(self, message: str, max_len: int):
+    def generate(self, message: str, max_len: int, *args, **kwargs):
         ents = self.__process_q(message)
 
         G = nx.DiGraph()

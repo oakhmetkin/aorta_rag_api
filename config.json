@@ -4,7 +4,8 @@
         "folder_id_path": "secrets/yandexgpt/folder_id",
         "api_key_path": "secrets/yandexgpt/api_key"
     },
-    "er_file": "data/er.txt",
+    "er_ru_file": "data/er_ru1.txt",
+    "er_en_file": "data/er_english.txt",
     "available_models": [
         "yandexgpt",
         "qwen"

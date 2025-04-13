@@ -25,8 +25,8 @@ with open('config.json') as f:
 auth.load_tokens(CONFIG['tokens_path'])
 
 # models
-ya_config = YandexGptModelConfig(CONFIG['er_file'], **CONFIG['yandexgpt_secrets'])
-qwen_config = QwenModelConfig(CONFIG['er_file'])
+ya_config = YandexGptModelConfig(CONFIG['er_ru_file'], **CONFIG['yandexgpt_secrets'])
+qwen_config = QwenModelConfig(CONFIG['er_ru_file'], CONFIG['er_en_file'])
 
 model_names = {k: k for k in CONFIG['available_models']}
 generative_models: tp.List[GenerativeModel] = {
@@ -80,12 +80,14 @@ class Query(BaseModel):
     token: str
     message: str
     model: str
+    lang: tp.Optional[str] = 'ru'
     max_len: tp.Optional[int] = None
 
 
 @app.post('/generate')
 async def generate(query: Query) -> tp.Dict[str, tp.Any]:
     user = auth.get_user(query.token)
+    lang = query.lang
 
     if user is None:
         logger.info(f'generate request failed: wrong token "{query.token}"')
@@ -105,13 +107,14 @@ async def generate(query: Query) -> tp.Dict[str, tp.Any]:
     
     model = generative_models[model_name]
     
-    answer = model.generate(query.message, query.max_len)
+    answer = model.generate(query.message, query.max_len, lang)
 
     if query.max_len and len(answer) > query.max_len:
         answer = answer[:query.max_len]
 
     logger.info(
         f'generate request successed: '
+        f'lang={lang}, '
         f'user={user}, '
         f'answer_len={len(answer)}, '
         f'input="{query.message[:min(50, len(query.message))]}"'
@@ -125,6 +128,7 @@ async def generate(query: Query) -> tp.Dict[str, tp.Any]:
 @app.post('/test/generate')
 async def test_generate(query: Query) -> tp.Dict[str, tp.Any]:
     user = auth.get_user(query.token)
+    lang = query.lang
 
     if user is None:
         logger.info(f'generate request failed: wrong token "{query.token}"')
@@ -142,15 +146,19 @@ async def test_generate(query: Query) -> tp.Dict[str, tp.Any]:
             'message': 'wrong model',
         }
     
-    answer = 'Lorem Ipsum is simply dummy text of the printing and typesetting industry.'
+    answer = {
+        'ru': 'Пример сгенерированного заключения. Обычно оно длиннее.',
+        'en': 'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+    }
 
     if query.max_len and len(answer) > query.max_len:
         answer = answer[:query.max_len]
 
     logger.info(
         f'test generate request successed: '
+        f'lang={lang}, '
         f'user={user}, '
-        f'answer_len={len(answer)}, '
+        f'answer_len={len(answer[lang])}, '
         f'input="{query.message[:min(50, len(query.message))]}"'
     )
     return {

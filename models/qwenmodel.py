@@ -17,9 +17,25 @@ logger = logging.getLogger('rag_logger')
 device = torch.device('cuda:1')
 
 
-ANSWER_PROMPT = """
+with open('/home/ahmetkin/aorta_rag_api/data/static_text_ru_001.txt') as f:
+    STATIC_CONTEXT_RU = f.read()
+
+
+with open('/home/ahmetkin/aorta_rag_api/data/static_text_en_001.txt') as f:
+    STATIC_CONTEXT_EN = f.read()
+
+
+# system prompts
+system_prompt = {
+    'ru': "Ты хорошо знаешь русский язык. Помоги решить задачу.",
+    'en': 'You know english well. Help me solve the problem.',
+}
+
+# (final) answer prompts
+ANSWER_PROMPT_RU = """
 Ты - помощник кардиохирурга. Пожалуйста, посмотри на текст (в тройных обратных кавычках) и симптомы больного ниже.
 Опираясь на факты из текста, напиши заключение, в которое будет содержать описание лечения и рекомендации для больного.
+Если пациент здоров (т. е. диаметр аорты точно попадает в интервал нормы), то напиши об этом.
 Твоя задача - упростить и ускорить работу кардиохирурга, поэтому напиши заключение так, как написал бы его кардиохирург.
 ```
 {context}
@@ -29,14 +45,67 @@ ANSWER_PROMPT = """
 Заключение:
 """
 
+ANSWER_PROMPT_EN = """
+You are a cardiac surgeon's assistant. Analyze the text below (enclosed in triple backticks) and the patient's symptoms.  
+Generate a **concise clinical summary** with:  
+1. **Treatment plan**: Based on factual data (e.g., aortic diameter, pathology).  
+2. **Recommendations**: Actionable steps (medication, surgery, monitoring).  
+3. **Normal findings**: Explicitly state if the aorta is within normal limits.  
 
-ENTITY_LOOKUP_PROMPT = """
+**Style**: Write as a senior cardiothoracic surgeon would—*authoritative, precise, and clinically streamlined*.  
+
+**Rules**:  
+- **Aorta-first priority**: Highlight aortic dimensions (e.g., "4.5cm ascending aorta → surveillance").  
+- **Symptom correlation**: Link symptoms to interventions (e.g., "chest pain + dissection → emergent repair").  
+- **No speculation**: Only use data from the text/symptoms.  
+
+```  
+{context}  
+```  
+
+**Symptoms**:  
+{simptoms}  
+
+**Clinical Summary**:  
+"""
+
+# entity extraction prompts
+ENTITY_LOOKUP_PROMPT_RU = """
 Ниже в тройных обратных кавычках приводится короткий текст. Тебе необходимо выделить из него все сущности,
 похожие на сущности из списка в двойных кавычках: "{list}". Верни только список сущностей в скобках
-через запятую, например: (аневризма, АБА, диаметр, операция). Верни только те сущности, которые в явном виде
-присутствуют в запросе (они могут быть написаны с опечатками или в другом падеже).
+через запятую, например: (аневризма, АБА, диаметр, операция). Верни те сущности, которые в явном виде
+присутствуют в запросе (они могут быть написаны с опечатками или в другом падеже),
+а также те сущности, которые могли бы быть полезны для диагностики аорты (например, аневризмы).
 Не придумывай никакие дополнительные сущности и не рассуждай.
 --текст--
+```
+{}
+```
+"""
+
+ENTITY_LOOKUP_PROMPT_EN = """
+Analyze the text below (triple backticks) and extract ALL entities matching the list: "{list}". 
+Prioritize aortic-related terms even if not explicitly listed but clinically relevant for aortic diagnosis.
+
+Output EXACTLY in this format:
+(term1, term2, term3)
+
+Critical rules:
+1. Mandatory inclusions:
+   - Direct matches from [{list}] (ignore case/typos: "Aneuryzm" → "aneurysm")
+   - Implied aortic terms (e.g., "root dilation" → include even if only "dilation" is listed)
+   - Diagnostic markers (e.g., "CT", "echo", "blood pressure" if context suggests aortic evaluation)
+
+2. Strict exclusions:
+   - No unmentioned entities
+   - No explanatory text
+
+3. Aortic priority terms (always include):
+   - Anatomic: root/ascending/arch/descending, diameter, valve
+   - Pathologic: dissection/aneurysm/rupture/coarctation
+   - Diagnostic: imaging modalities, pressure gradients
+
+--text--
 ```
 {}
 ```
@@ -45,7 +114,7 @@ ENTITY_LOOKUP_PROMPT = """
 
 class QwenModelConfig:
     
-    def __init__(self, er_file: str):
+    def __init__(self, er_ru_file: str, er_en_file: str):
         self.__ACCENT_MAPPING = {
             '́': '', '̀': '', 'а́': 'а', 'а̀': 'а', 'е́': 'е', 'ѐ': 'е', 'и́': 'и',
             'ѝ': 'и', 'о́': 'о', 'о̀': 'о', 'у́': 'у', 'у̀': 'у', 'ы́': 'ы',
@@ -59,10 +128,15 @@ class QwenModelConfig:
 
         # -----
 
-        self.entities, self.relations = self.__extract_ER_from_file(er_file)
+        self.entities_ru, self.relations_ru = self.__extract_ER_from_file(er_ru_file)
+        self.entities_en, self.relations_en = self.__extract_ER_from_file(er_en_file)
 
-        self.entity_lookup_prompt = ENTITY_LOOKUP_PROMPT.replace(
-            '{list}', ', '.join(self.entities.keys()),
+        self.entity_lookup_prompt_ru = ENTITY_LOOKUP_PROMPT_RU.replace(
+            '{list}', ', '.join(self.entities_ru.keys()),
+        )
+
+        self.entity_lookup_prompt_en = ENTITY_LOOKUP_PROMPT_EN.replace(
+            '{list}', ', '.join(self.entities_en.keys()),
         )
     
     def __add_entity(self, entities, name, kind, desc):
@@ -81,11 +155,11 @@ class QwenModelConfig:
     def __normalize(self, text):
         return (
             self.__unaccentify(text)
-            .replace('«', '')
-            .replace('»', '')
-            .replace('"', '')
-            .replace('<', '')
-            .replace('>', '')
+            # .replace('«', '')
+            # .replace('»', '')
+            # .replace('"', '')
+            # .replace('<', '')
+            # .replace('>', '')
         )
 
     def __extract_ER(self, lines):
@@ -126,7 +200,7 @@ class QwenModelConfig:
 
     def __extract_ER_from_file(self, er_file: str):
         with open(er_file, 'r', encoding='utf-8') as f:
-            lines = f.read()
+            lines = f.readlines()
         
         entities, relations = self.__extract_ER(lines)
         logger.info(f"Found {len(entities)} entities and {len(relations)} relations")
@@ -138,7 +212,7 @@ class QwenModel(GenerativeModel):
     def __init__(self, config: QwenModelConfig):
         super().__init__()
 
-        model_name = "Qwen/Qwen2.5-7B-Instruct"
+        model_name = "Qwen/Qwen2.5-14B-Instruct"
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype="auto",
@@ -147,14 +221,24 @@ class QwenModel(GenerativeModel):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         # self.temperature = 0.1
 
-        self.__entities = config.entities
-        self.__relations = config.relations
+        self.__entities = {
+            'ru': config.entities_ru,
+            'en': config.entities_en,
+        }
 
-        self.__entity_lookup_prompt = config.entity_lookup_prompt
+        self.__relations = {
+            'ru': config.relations_ru,
+            'en': config.relations_en,
+        }
+
+        self.__entity_lookup_prompt = {
+            'ru': config.entity_lookup_prompt_ru,
+            'en': config.entity_lookup_prompt_en,
+        }
     
-    def __generate_text(self, prompt: str):
+    def __generate_text(self, prompt: str, max_len: int = 512, lang: str = 'ru'):
         messages = [
-            {"role": "system", "content": "Ты хорошо знаешь русский язык. Помоги решить задачу."},
+            {"role": "system", "content": system_prompt[lang]},
             {"role": "user", "content": prompt}
         ]
         text = self.tokenizer.apply_chat_template(
@@ -165,7 +249,7 @@ class QwenModel(GenerativeModel):
         model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
         generated_ids = self.model.generate(
             **model_inputs,
-            max_new_tokens=512,
+            max_new_tokens=512,  # tmp hardcoded
         )
         generated_ids = [
             output_ids[len(input_ids):]
@@ -175,23 +259,37 @@ class QwenModel(GenerativeModel):
 
         return response
 
-    def generate(self, message: str, max_len: int):
-        ents = self.__process_q(message)
+    def generate(self, message: str, max_len: int, lang: str = 'ru', *args, **kwargs):
+        # ents = self.__process_q(message, lang)
+        # logger.debug(f'lang="{lang}"; parsed_entities={ents}')
 
-        G = nx.DiGraph()
-        for e in ents:
-            self.__populate_graph(G, e, 2)
+        # G = nx.DiGraph()
+        # for e in ents:
+        #     self.__populate_graph(G, e, 2)
+
+        if lang == 'en':
+            # context = self.__create_context(G)
+            context = STATIC_CONTEXT_EN
+        else:
+            context = STATIC_CONTEXT_RU
+
+        answer_prompt = (
+            (ANSWER_PROMPT_RU if lang == 'ru' else ANSWER_PROMPT_EN)
+            .replace('{context}', context)
+            .replace('{simptoms}', message)
+        )
+        # logger.debug(f'context="{context}"')
 
         ans = self.__generate_text(
-            ANSWER_PROMPT
-            .replace('{context}', self.__create_context(G))
-            .replace('{simptoms}', message),
+            answer_prompt,
+            max_len,
+            lang,
         )
 
         return ans
     
-    def __process_q(self, txt):       
-        res = self.__generate_text(self.__entity_lookup_prompt.format(txt))
+    def __process_q(self, txt, lang: str = 'ru'):       
+        res = self.__generate_text(self.__entity_lookup_prompt[lang].format(txt))
 
         if '(' in res and ')' in res:
             res = res[res.index('(')+1:res.index(')')]
@@ -202,29 +300,29 @@ class QwenModel(GenerativeModel):
 
     def __create_context(self, G):
         return '\n'.join(
-            e[-1]['desc'] for e in G.edges(data=True)
+            f"{e[-1]['label']}: {e[-1]['desc']}" for e in G.edges(data=True)
         )
 
-    def __populate_graph(self, G, e, level=None):
+    def __populate_graph(self, G, e, level=None, lang: str = 'ru'):
         if e in G.nodes:
             return
 
-        if e in self.__entities.keys():
+        if e in self.__entities[lang].keys():
             G.add_node(e, label=e)
 
         if level is not None and level <= 0:
             return
 
         new_ent = set(
-            [r['source'] for r in self.__relations if r['target'] == e] +
-            [r['target'] for r in self.__relations if r['source'] == e]
+            [r['source'] for r in self.__relations[lang] if r['target'] == e] +
+            [r['target'] for r in self.__relations[lang] if r['source'] == e]
         )
 
         for ne in new_ent:
             self.__populate_graph(G, ne, None if level is None else level-1)
 
-        for r in self.__relations:
+        for r in self.__relations[lang]:
             if r['source'] == e:
-                G.add_edge(e, r['target'], label=r['relation'], desc=r['desc'])
+                G.add_edge(e, r['target'], label=f"{r['target']} {r['relation']}", desc=r['desc'])
             if r['target'] == e:
-                G.add_edge(r['source'], e, label=r['relation'], desc=r['desc'])
+                G.add_edge(r['source'], e, label=f"{r['source']} {r['relation']}", desc=r['desc'])
