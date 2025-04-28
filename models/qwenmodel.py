@@ -5,6 +5,7 @@ import networkx as nx
 import re
 import unicodedata
 import logging
+import os
 
 from .generative_model import GenerativeModel
 
@@ -17,7 +18,7 @@ logger = logging.getLogger('rag_logger')
 device = torch.device('cuda:1')
 
 
-with open('/home/ahmetkin/aorta_rag_api/data/static_text_ru_001.txt') as f:
+with open('/home/ahmetkin/aorta_rag_api/data/static_text_ru_002.txt') as f:
     STATIC_CONTEXT_RU = f.read()
 
 
@@ -126,8 +127,6 @@ class QwenModelConfig:
             unicodedata.normalize('NFKC', i): j for i, j in self.__ACCENT_MAPPING.items()
         }
 
-        # -----
-
         self.entities_ru, self.relations_ru = self.__extract_ER_from_file(er_ru_file)
         self.entities_en, self.relations_en = self.__extract_ER_from_file(er_en_file)
 
@@ -155,11 +154,6 @@ class QwenModelConfig:
     def __normalize(self, text):
         return (
             self.__unaccentify(text)
-            # .replace('«', '')
-            # .replace('»', '')
-            # .replace('"', '')
-            # .replace('<', '')
-            # .replace('>', '')
         )
 
     def __extract_ER(self, lines):
@@ -212,14 +206,14 @@ class QwenModel(GenerativeModel):
     def __init__(self, config: QwenModelConfig):
         super().__init__()
 
-        model_name = "Qwen/Qwen2.5-14B-Instruct"
+
+        model_name = "Qwen/Qwen2.5-32B-Instruct"
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype="auto",
             device_map=device,
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        # self.temperature = 0.1
 
         self.__entities = {
             'ru': config.entities_ru,
@@ -249,7 +243,7 @@ class QwenModel(GenerativeModel):
         model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
         generated_ids = self.model.generate(
             **model_inputs,
-            max_new_tokens=512,  # tmp hardcoded
+            max_new_tokens=512,
         )
         generated_ids = [
             output_ids[len(input_ids):]
@@ -278,7 +272,6 @@ class QwenModel(GenerativeModel):
             .replace('{context}', context)
             .replace('{simptoms}', message)
         )
-        # logger.debug(f'context="{context}"')
 
         ans = self.__generate_text(
             answer_prompt,
