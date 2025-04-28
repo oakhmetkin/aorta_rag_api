@@ -10,3 +10,4 @@ secrets
 
 # other
 test.py
+*.log

@@ -1,0 +1,45 @@
+### **Aortic Diameter Reference Guide**  
+
+#### **1. General Criteria**  
+| Diameter (cm) | Diagnosis | Recommendations |  
+|--------------|-----------|-----------------|  
+| **< 1.0**    | Extremely narrow aorta (hypoplasia, coarctation) | Urgent examination (echoCG, CT/MRI), possible surgical correction. Risk of hypertension and heart failure. |  
+| **1.0–1.9**  | Narrow aorta (normal in children/petite adults) | Monitoring. If symptoms (murmurs, hypertension) occur – further evaluation. |  
+| **2.0–3.0**  | Normal (adults) | Routine check-ups every 3–5 years. |  
+| **3.1–4.4**  | Mild dilation (early-stage aneurysm) | Monitor every 6–12 months (echoCG, CT), control BP (β-blockers, ACE inhibitors), reduce risk factors (smoking, hyperlipidemia). |  
+| **4.5–5.4**  | Significant aneurysm | Consult a vascular surgeon; prepare for elective surgery. If growth >0.5 cm/year – urgent intervention. |  
+| **5.5–6.9**  | Large aneurysm (high rupture risk) | Emergency surgery (open repair or endovascular stenting). |  
+| **≥ 7.0**    | Giant aneurysm (critical condition) | Immediate surgery, high mortality risk. |  
+| **> 10.0**   | Likely measurement error or rare pathology | Recheck data (CT/MRI), rule out artifacts. |  
+
+---
+
+#### **2. Norms by Aortic Segment**  
+| Aortic Segment       | Normal (cm) | Borderline Dilation (cm) | Surgical Threshold (cm) |  
+|----------------------|-------------|--------------------------|-------------------------|  
+| **Ascending Aorta**  | 2.0–3.5     | 3.6–4.4                  | ≥ 5.0 (≥ 4.5 for Marfan/bicuspid valve) |  
+| **Aortic Arch**      | 2.0–3.0     | 3.1–4.0                  | ≥ 4.5                   |  
+| **Descending Aorta** (thoracic) | 1.8–2.8 | 2.9–3.9                  | ≥ 4.5                   |  
+| **Abdominal Aorta**  | 1.5–2.5     | ≥ 3.0                    | ≥ 5.0 (≥ 4.5 if rapid growth/symptoms) |  
+
+---
+
+### **Additional Factors**  
+- **Location:** Criteria differ for ascending, thoracic, and abdominal segments.  
+- **Growth Rate:**  
+  - >0.5 cm/year – surgery indicated even below standard thresholds.  
+- **Comorbidities:**  
+  - **Marfan syndrome** or **bicuspid aortic valve** – reduce surgical threshold by **0.5 cm**.  
+  - **Dissection/rupture** – emergency surgery regardless of size.  
+- **Gender/Height:** Norms may be **0.2–0.3 cm higher** in men/tall individuals.  
+
+---
+
+### **Key Recommendations**  
+1. **Diagnostics:**  
+   - EchoCG for screening; CT/MRI for confirmation.  
+2. **Monitoring:**  
+   - For aneurysms 3.1–4.4 cm – imaging every 6–12 months.  
+3. **Surgery:**  
+   - Elective repair at critical sizes or rapid growth.  
+   - Emergency repair for dissection/rupture.  
