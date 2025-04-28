@@ -1,4 +1,16 @@
-# Aorta RAG system API
+# Aorta disease conclusion API
+
+API для написания заключения по заболеваниям аорты
+
+**Вход:** "диаметр `восходящей` аорты `4.3 см`"
+
+**Ответ:**
+```txt
+Заключение:
+<Диагноз>
+<Лечение>
+<Рекомендации>
+```
 
 ## Requirements
 
@@ -12,12 +24,6 @@ source rag_api/bin/activate
 ```bash
 pip3 install -r requirements.txt
 ```
-
-## Secret files
-
-Для YandexGPT4 Pro RC нужно добавить два файла с переменными:
-- YANDEX_FOLDER_ID
-- YANDEX_API_KEY
 
 ## Start
 
